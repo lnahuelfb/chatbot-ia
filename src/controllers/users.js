@@ -1,14 +1,19 @@
 import { prisma } from "../db/prisma.js";
+import { userSchema } from "../validations/users.js";
 
 export const createUser = async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const validation = userSchema.safeParse(req.body);
 
-    console.log("Datos recibidos para crear usuario:", req.body);
-
-    if (!email) {
-      return res.status(400).json({ error: "El email es obligatorio" });
+    if (!validation.success) {
+      const errors = validation.error.issues.map(e => ({
+        field: e.path.join("."),
+        message: e.message
+      }));
+      return res.status(400).json({ errors });
     }
+    
+    const { name, email, phone } = validation.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -16,25 +21,16 @@ export const createUser = async (req, res) => {
     }
 
     const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone,
-      },
+      data: { name, email, phone },
     });
 
-    return res.status(201).json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      createdAt: user.createdAt,
-    });
+    return res.status(201).json({ user });
   } catch (error) {
     console.error("Error creando usuario:", error);
     return res.status(500).json({ error: "Error interno del servidor" });
   }
 };
+
 
 export const getUsers = async (req, res) => {
   try {
@@ -58,7 +54,7 @@ export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await prisma.user.findUnique({
-      where: { id: Number(id) },
+      where: { id: String(id) },
       select: {
         id: true,
         name: true,
@@ -93,22 +89,36 @@ export const deleteUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone } = req.body;
-    const user = await prisma.user.update({
-      where: { id: Number(id) },
-      data: {
-        name,
-        email,
-        phone,
-      },
+
+    const validation = userSchema.partial().safeParse(req.body);
+    if (!validation.success) {
+      const errors = validation.error.issues.map(e => ({
+        field: e.path.join("."),
+        message: e.message,
+      }));
+      return res.status(400).json({ errors });
+    }
+
+    const { name, email, phone } = validation.data;
+
+    const existingUser = await prisma.user.findUnique({ where: { id } });
+    if (!existingUser) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    if (email && email !== existingUser.email) {
+      const emailTaken = await prisma.user.findUnique({ where: { email } });
+      if (emailTaken) {
+        return res.status(409).json({ error: "Otro usuario ya tiene ese email" });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { name, email, phone },
     });
-    return res.status(200).json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      createdAt: user.createdAt,
-    });
+
+    return res.status(200).json(updatedUser);
   } catch (error) {
     console.error("Error actualizando usuario:", error);
     return res.status(500).json({ error: "Error interno del servidor" });
