@@ -99,6 +99,8 @@ export const updateUser = async (req, res) => {
       return res.status(400).json({ errors });
     }
 
+    console.log(validation)
+
     const { name, email, phone } = validation.data;
 
     const existingUser = await prisma.user.findUnique({ where: { id } });

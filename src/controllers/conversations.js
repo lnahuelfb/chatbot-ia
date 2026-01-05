@@ -1,132 +1,102 @@
 import { prisma } from "../db/prisma.js";
-import { createConversationSchema, updateConversationSchema } from "../validations/conversation.js";
+import { createConversationSchema, addMessageSchema } from "../validations/conversation.js";
 
 export const createConversation = async (req, res) => {
+  const validation = createConversationSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ errors: validation.error.errors });
+  }
+
   try {
-    const validation = createConversationSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ errors: validation.error.errors });
-    }
-    
-    const { user, messages } = req.body;
+    const { userId, messages } = validation.data;
 
     const conversation = await prisma.conversation.create({
       data: {
-        user,
-        messages,
+        userId,
+        ...(messages && {
+          messages: { create: messages }
+        })
       },
+      include: { messages: true }
     });
 
-    return res.status(201).json({
-      id: conversation.id,
-      user: conversation.user,
-      messages: conversation.messages,
-      createdAt: conversation.createdAt,
-    });
-
-  } catch (error) {
-    console.error("Error creando conversación:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
+    res.status(201).json(conversation);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
-}
+};
 
 export const addMessageToConversation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role, content } = req.body;
+  const validation = addMessageSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ errors: validation.error.errors });
+  }
 
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: String(id) },
+  try {
+    const message = await prisma.message.create({
+      data: {
+        ...validation.data,
+        conversationId: req.params.id
+      }
     });
 
-    if (!conversation) {
+    res.status(201).json(message);
+  } catch (err) {
+    if (err.code === "P2003") {
       return res.status(404).json({ error: "Conversación no encontrada" });
     }
-    
-    const newMessage = { role, content };
-    const updatedMessages = [...conversation.messages, newMessage];
-    const updatedConversation = await prisma.conversation.update({
-      where: { id: String(id) },
-      data: { messages: updatedMessages },
-    });
-    
-    return res.status(200).json({
-      id: updatedConversation.id,
-      user: updatedConversation.user,
-      messages: updatedConversation.messages,
-      createdAt: updatedConversation.createdAt,
-    });
-  } catch (error) {
-    console.error("Error agregando mensaje a la conversación:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
-}
+};
 
 export const deleteConversation = async (req, res) => {
   try {
-    const { id } = req.params;
     await prisma.conversation.delete({
-      where: { id: String(id) },
+      where: { id: req.params.id }
     });
-    return res.status(204).send();
-  } catch (error) {
-    console.error("Error eliminando conversación:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
-  }
-}
 
-export const getConversations = async (req, res) => {
-  try {
-    const conversations = await prisma.conversation.findMany();
-    return res.status(200).json(conversations);
-  } catch (error) {
-    console.error("Error obteniendo conversaciones:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
+    res.sendStatus(204);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
-}
+};
+
+
+export const getConversations = async (_, res) => {
+  try {
+    const conversations = await prisma.conversation.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+
+    res.json(conversations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
+
 
 export const getConversationById = async (req, res) => {
   try {
-    const { id } = req.params;
     const conversation = await prisma.conversation.findUnique({
-      where: { id: String(id) },
+      where: { id: req.params.id },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" }
+        }
+      }
     });
+
     if (!conversation) {
       return res.status(404).json({ error: "Conversación no encontrada" });
     }
-    return res.status(200).json(conversation);
-  } catch (error) {
-    console.error("Error obteniendo conversación por ID:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
+
+    res.json(conversation);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
-}
-
-export const updateConversation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const validation = updateConversationSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ errors: validation.error.errors });
-    }
-
-    const { user, messages } = req.body;
-
-    const conversation = await prisma.conversation.update({
-      where: { id: String(id) },
-      data: {
-        user,
-        messages,
-      },
-    });
-
-    return res.status(200).json({
-      id: conversation.id,
-      user: conversation.user,
-      messages: conversation.messages,
-      createdAt: conversation.createdAt,
-    });
-  } catch (error) {
-    console.error("Error actualizando conversación:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
-  }
-}
+};
