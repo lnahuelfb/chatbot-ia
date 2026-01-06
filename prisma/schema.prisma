@@ -12,7 +12,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
   id            String         @id @default(uuid())
   createdAt     DateTime       @default(now())
@@ -20,17 +19,19 @@ model User {
   name          String?
   email         String?        @unique
   phone         String?
-  preferences   Preference[]
+  preferences   Preference?
   conversations Conversation[]
 }
 
 model Conversation {
-  id        String    @id @default(uuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
   messages  Message[]
+
+  @@index([userId])
 }
 
 model Message {
@@ -39,20 +40,22 @@ model Message {
   role           MessageRole
   content        String
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Preference {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
-  userId    String
+  updatedAt DateTime @updatedAt
+  userId    String   @unique
   user      User     @relation(fields: [userId], references: [id])
 
-  zona           String?
-  tipoPropiedad  String?
-  recamaras      Int?
-  presupuestoMax Int?
-  compraORenta   String?
+  zona             String?
+  tipoPropiedad    PropertyType?
+  recamaras        Int?
+  presupuestoMax   Int?
+  operacion        OperationType?
+  profileCompleted Boolean        @default(false)
 }
 
 enum MessageRole {
@@ -60,4 +63,15 @@ enum MessageRole {
   user
   assistant
   function
+}
+
+enum OperationType {
+  compra
+  renta
+}
+
+enum PropertyType {
+  casa
+  departamento
+  terreno
 }

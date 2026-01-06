@@ -10,4 +10,8 @@ export const createConversationSchema = z.object({
   messages: z.array(messageSchema).optional(),
 });
 
+export const conversationIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
 export const addMessageSchema = messageSchema;

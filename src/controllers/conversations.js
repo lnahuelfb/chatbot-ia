@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma.js";
-import { createConversationSchema, addMessageSchema } from "../validations/conversation.js";
+import { createConversationSchema, addMessageSchema, conversationIdParamSchema } from "../validations/conversation.js";
 
 export const createConversation = async (req, res) => {
   const validation = createConversationSchema.safeParse(req.body);
@@ -8,16 +8,26 @@ export const createConversation = async (req, res) => {
   }
 
   try {
-    const { userId, messages } = validation.data;
+    const { userId, messages, preferences } = validation.data;
 
     const conversation = await prisma.conversation.create({
       data: {
         userId,
+        ...(preferences && {
+          preferences: {
+            create: preferences
+          }
+        }),
         ...(messages && {
-          messages: { create: messages }
+          messages: {
+            create: messages
+          }
         })
       },
-      include: { messages: true }
+      include: {
+        messages: true,
+        preferences: true
+      }
     });
 
     res.status(201).json(conversation);
@@ -28,16 +38,21 @@ export const createConversation = async (req, res) => {
 };
 
 export const addMessageToConversation = async (req, res) => {
-  const validation = addMessageSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({ errors: validation.error.errors });
+  const bodyValidation = addMessageSchema.safeParse(req.body);
+  if (!bodyValidation.success) {
+    return res.status(400).json({ errors: bodyValidation.error.errors });
+  }
+
+  const paramsValidation = conversationIdParamSchema.safeParse(req.params);
+  if (!paramsValidation.success) {
+    return res.status(400).json({ error: "ID de conversación inválido" });
   }
 
   try {
     const message = await prisma.message.create({
       data: {
-        ...validation.data,
-        conversationId: req.params.id
+        ...bodyValidation.data,
+        conversationId: paramsValidation.data.id
       }
     });
 
@@ -50,6 +65,7 @@ export const addMessageToConversation = async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
+
 
 export const deleteConversation = async (req, res) => {
   try {
@@ -65,9 +81,10 @@ export const deleteConversation = async (req, res) => {
 };
 
 
-export const getConversations = async (_, res) => {
+export const getConversations = async (req, res) => {
   try {
     const conversations = await prisma.conversation.findMany({
+      where: { userId: req.params.userId },
       orderBy: { createdAt: "desc" }
     });
 

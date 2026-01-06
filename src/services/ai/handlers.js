@@ -1,3 +1,5 @@
+// ai/handlers.js
+
 export async function filtrarPropiedades({ zona, recamaras, presupuestoMax }) {
   const allProps = [
     { titulo: "Casa en Coyoacán", zona: "Coyoacán", precio: 5000000, recamaras: 3 },
@@ -13,10 +15,19 @@ export async function filtrarPropiedades({ zona, recamaras, presupuestoMax }) {
   );
 }
 
-export async function handleFunctionCall(filters, history, client) {
+/**
+ * Función que maneja el filtrado y genera la respuesta
+ * @param {object} filters
+ * @param {Array} history
+ */
+export async function handleFunctionCall(filters, history) {
   const resultados = await filtrarPropiedades(filters);
 
-  history.push({ role: "developer", content: JSON.stringify({ filtros: filters, resultados }) });
+  // Guardar en el historial de la conversación
+  history.push({
+    role: "developer",
+    content: JSON.stringify({ filtros: filters, resultados })
+  });
 
   const reply = resultados.length
     ? `Tengo opciones que cumplen lo que buscas: ${resultados.map(r => `${r.titulo} por ${r.precio} MXN`).join(" | ")}. ¿Querés que afinemos algún filtro más?`
@@ -26,6 +37,7 @@ export async function handleFunctionCall(filters, history, client) {
   return reply;
 }
 
+// Extraer recámaras y presupuesto de un mensaje
 export function parseUserMessage(message) {
   const recamarasMatch = message.match(/(\d+)\s*recámaras?/i);
   const presupuestoMatch = message.match(/(\d+(?:[.,]\d+)?)\s*(millones|mxn|pesos)/i);
@@ -38,6 +50,7 @@ export function parseUserMessage(message) {
   };
 }
 
+// Extraer zona de un mensaje
 export function parseZona(message) {
   const zonas = ["Coyoacán", "Polanco", "Condesa", "Roma", "Narvarte", "Escandón"];
   for (const zona of zonas) {

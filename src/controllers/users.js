@@ -126,3 +126,32 @@ export const updateUser = async (req, res) => {
     return res.status(500).json({ error: "Error interno del servidor" });
   }
 };
+
+export const getUserPreferences = async (req, res) => {
+  // Implementación pendiente
+}
+
+export const upsertPreference = async (req, res) => {
+  const validation = upsertPreferenceSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ errors: validation.error.errors });
+  }
+
+  try {
+    const preference = await prisma.preference.upsert({
+      where: {
+        userId: req.params.userId,
+      },
+      update: validation.data,
+      create: {
+        userId: req.params.userId,
+        ...validation.data,
+      },
+    });
+
+    res.json(preference);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
