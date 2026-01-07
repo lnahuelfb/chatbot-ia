@@ -9,6 +9,6 @@ router.post('/', createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 router.get('/:id/preferences', getUserPreferences);
-router.post('/:id/preference', upsertPreference);
+router.post('/:id/preferences', upsertPreference);
 
 export default router;

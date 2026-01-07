@@ -58,3 +58,23 @@ export function parseZona(message) {
   }
   return undefined;
 }
+
+export async function handleFunctionCall(fnName, args, history) {
+  if (fnName === "updatePreferences") {
+    const { userId, ...payload } = args;
+
+    await fetch(`${process.env.API_URL}/api/users/${userId}/preferences`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const reply =
+      "Perfecto, ya guardé tus preferencias. ¿Querés que te muestre opciones que encajen con eso?";
+
+    history.push({ role: "assistant", content: reply });
+    return reply;
+  }
+
+  return "No entendí bien qué hacer con eso 🤔";
+}

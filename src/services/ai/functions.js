@@ -22,5 +22,21 @@ export const functions = [
         presupuestoMax: { type: "number" }
       }
     }
+  },
+    {
+    name: "updatePreferences",
+    description: "Guarda o actualiza preferencias del usuario",
+    type: "function",
+    parameters: {
+      type: "object",
+      properties: {
+        userId: { type: "string" },
+        zona: { type: "string" },
+        recamaras: { type: "number" },
+        presupuestoMax: { type: "number" },
+        operacion: { type: "string", enum: ["compra", "renta"] }
+      },
+      required: ["userId"]
+    }
   }
 ];
