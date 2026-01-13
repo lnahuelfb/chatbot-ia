@@ -1,5 +1,3 @@
-// ai/handlers.js
-
 export async function filtrarPropiedades({ zona, recamaras, presupuestoMax }) {
   const allProps = [
     { titulo: "Casa en Coyoacán", zona: "Coyoacán", precio: 5000000, recamaras: 3 },
@@ -15,29 +13,6 @@ export async function filtrarPropiedades({ zona, recamaras, presupuestoMax }) {
   );
 }
 
-/**
- * Función que maneja el filtrado y genera la respuesta
- * @param {object} filters
- * @param {Array} history
- */
-export async function handleFunctionCall(filters, history) {
-  const resultados = await filtrarPropiedades(filters);
-
-  // Guardar en el historial de la conversación
-  history.push({
-    role: "developer",
-    content: JSON.stringify({ filtros: filters, resultados })
-  });
-
-  const reply = resultados.length
-    ? `Tengo opciones que cumplen lo que buscas: ${resultados.map(r => `${r.titulo} por ${r.precio} MXN`).join(" | ")}. ¿Querés que afinemos algún filtro más?`
-    : "No encontré propiedades con esos filtros. ¿Querés probar con otros parámetros?";
-
-  history.push({ role: "assistant", content: reply });
-  return reply;
-}
-
-// Extraer recámaras y presupuesto de un mensaje
 export function parseUserMessage(message) {
   const recamarasMatch = message.match(/(\d+)\s*recámaras?/i);
   const presupuestoMatch = message.match(/(\d+(?:[.,]\d+)?)\s*(millones|mxn|pesos)/i);
@@ -50,7 +25,6 @@ export function parseUserMessage(message) {
   };
 }
 
-// Extraer zona de un mensaje
 export function parseZona(message) {
   const zonas = ["Coyoacán", "Polanco", "Condesa", "Roma", "Narvarte", "Escandón"];
   for (const zona of zonas) {
@@ -59,10 +33,12 @@ export function parseZona(message) {
   return undefined;
 }
 
-export async function handleFunctionCall(fnName, args, history) {
-  if (fnName === "updatePreferences") {
-    const { userId, ...payload } = args;
+export async function handleFunctionCall(fnNameOrFilters, history) {
+  // Si es llamado por nombre de función (updatePreferences)
+  if (fnNameOrFilters?.name === "updatePreferences") {
+    const { userId, ...payload } = fnNameOrFilters.args;
 
+    // Llamada al backend
     await fetch(`${process.env.API_URL}/api/users/${userId}/preferences`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,10 +47,22 @@ export async function handleFunctionCall(fnName, args, history) {
 
     const reply =
       "Perfecto, ya guardé tus preferencias. ¿Querés que te muestre opciones que encajen con eso?";
-
     history.push({ role: "assistant", content: reply });
     return reply;
   }
 
-  return "No entendí bien qué hacer con eso 🤔";
+  const filtros = fnNameOrFilters;
+  const resultados = await filtrarPropiedades(filtros);
+
+  history.push({
+    role: "developer",
+    content: JSON.stringify({ filtros, resultados })
+  });
+
+  const reply = resultados.length
+    ? `Tengo opciones que cumplen lo que buscas: ${resultados.map(r => `${r.titulo} por ${r.precio} MXN`).join(" | ")}. ¿Querés que afinemos algún filtro más?`
+    : "No encontré propiedades con esos filtros. ¿Querés probar con otros parámetros?";
+
+  history.push({ role: "assistant", content: reply });
+  return reply;
 }

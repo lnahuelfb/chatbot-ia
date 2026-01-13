@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
-import { upsertPreferenceSchema } from "../validations/preferences.js";
+import { upsertPreferenceSchema } from "../validations/preference.js";
 
+// Crea el usuario si no existe o devuelve el existente
 export const ensureUser = async (req, res) => {
   const { id } = req.params;
 
@@ -8,9 +9,7 @@ export const ensureUser = async (req, res) => {
     const user = await prisma.user.upsert({
       where: { id },
       update: {},
-      create: {
-        id,
-      },
+      create: { id },
     });
 
     return res.status(200).json(user);
@@ -20,33 +19,14 @@ export const ensureUser = async (req, res) => {
   }
 };
 
-export const getUsers = async (req, res) => {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        createdAt: true,
-      },
-    });
-    return res.status(200).json(users);
-  } catch (error) {
-    console.error("Error obteniendo usuarios:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
-  }
-};
-
+// Obtiene usuario con preferencias (contexto para IA)
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
 
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
-        preference: true,
-      },
+      include: { preference: true },
     });
 
     if (!user) {
@@ -55,38 +35,26 @@ export const getUserById = async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error(error);
+    console.error("Error obteniendo usuario:", error);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
-export const deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.user.delete({
-      where: { id },
-    });
-
-    return res.status(200).json({ message: "Usuario eliminado correctamente" });
-  } catch (error) {
-    console.error("Error eliminando usuario:", error);
-    return res.status(500).json({ error: "Error interno del servidor" });
-  }
-};
-
+// Obtiene solo las preferencias del usuario
 export const getUserPreferences = async (req, res) => {
   try {
     const preference = await prisma.preference.findUnique({
-      where: { userId: req.params.id }
+      where: { userId: req.params.id },
     });
 
     res.json(preference ?? {});
   } catch (err) {
-    console.error(err);
+    console.error("Error obteniendo preferencias:", err);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
 
+// Upsert de preferencias del usuario
 export const upsertPreference = async (req, res) => {
   const validation = upsertPreferenceSchema.safeParse(req.body);
   if (!validation.success) {
@@ -107,7 +75,7 @@ export const upsertPreference = async (req, res) => {
 
     res.json(preference);
   } catch (err) {
-    console.error(err);
+    console.error("Error guardando preferencias:", err);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
