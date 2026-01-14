@@ -19,7 +19,7 @@ router.post("/", async (req, res) => {
   const payload = req.body;
   console.log("Webhook recibido:", payload?.event ?? "sin event", { id: payload?.id });
 
-  // responder rápido al webhook
+
   res.sendStatus(200);
 
   try {
@@ -97,35 +97,3 @@ router.post("/", async (req, res) => {
 });
 
 export default router;
-
-
-// import { Router } from "express";
-// import { generateReply } from "../services/ai/ai.js";
-// import { sendMessage } from "../services/chatwoot/chatwoot.js";
-
-// const router = Router();
-
-// router.get("/", (_req, res) => {
-//   res.send({message: "El webhook está funcionando correctamente."});
-// });
-
-// router.post("/", async (req, res) => {
-//   console.log("Webhook recibido:", req.body);
-//   const conversationId = req.body?.conversation?.id || req.body?.conversation_id;
-//   const lastMessage = req.body?.conversation?.messages?.[0]?.content;
-//   const messageType = req.body.message_type;
-
-
-//   res.sendStatus(200);
-
-//   if (!conversationId || messageType !== "incoming") return;
-
-//   console.log("Mensaje recibido:", { message: req.body?.conversation?.messages?.[0].content, conversationId });
-
-//   const aiReply = await generateReply(conversationId, lastMessage);
-//   await sendMessage(conversationId, aiReply);
-
-//   console.log("Respuesta enviada:", aiReply);
-// });
-
-// export default router;

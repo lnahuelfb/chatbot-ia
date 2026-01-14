@@ -33,30 +33,43 @@ export function parseZona(message) {
   return undefined;
 }
 
+// handlers.js
 export async function handleFunctionCall(fnNameOrFilters, history) {
-  // Si es llamado por nombre de función (updatePreferences)
   if (fnNameOrFilters?.name === "updatePreferences") {
     const { userId, ...payload } = fnNameOrFilters.args;
 
-    // Llamada al backend
-    await fetch(`${process.env.API_URL}/api/users/${userId}/preferences`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const resp = await fetch(`${process.env.API_URL}/api/users/${userId}/preferences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const reply =
-      "Perfecto, ya guardé tus preferencias. ¿Querés que te muestre opciones que encajen con eso?";
-    history.push({ role: "assistant", content: reply });
-    return reply;
+      if (!resp.ok) {
+        throw new Error(`Error API: ${resp.status} ${resp.statusText}`);
+      }
+
+      const preference = await resp.json();
+
+      const reply = `Perfecto, ya guardé tus preferencias: zona=${preference.zona ?? "-"}, recámaras=${preference.recamaras ?? "-"}, presupuesto=${preference.presupuestoMax ?? "-"}, operación=${preference.operacion ?? "-"}. ¿Querés que te muestre opciones que encajen con eso?`;
+
+      history.push({ role: "assistant", content: reply });
+      return reply;
+    } catch (err) {
+      console.error("Error guardando preferencias vía API:", err);
+      const reply = "No pude guardar tus preferencias en este momento. Probemos de nuevo más tarde.";
+      history.push({ role: "assistant", content: reply });
+      return reply;
+    }
   }
 
+  // resto igual: filtros de propiedades
   const filtros = fnNameOrFilters;
   const resultados = await filtrarPropiedades(filtros);
 
   history.push({
     role: "developer",
-    content: JSON.stringify({ filtros, resultados })
+    content: JSON.stringify({ filtros, resultados }),
   });
 
   const reply = resultados.length
@@ -66,3 +79,4 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
   history.push({ role: "assistant", content: reply });
   return reply;
 }
+
