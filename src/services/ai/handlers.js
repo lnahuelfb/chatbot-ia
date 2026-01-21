@@ -12,7 +12,7 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
       console.log(`[DB] Sincronizando preferencias para: ${args.userId}`);
       
       // Usamos upsert: si el usuario no tiene preferencias, las crea; si tiene, las pisa.
-      await prisma.userPreference.upsert({
+      await prisma.preference.upsert({
         where: { userId: String(args.userId) },
         update: {
           zona: args.zona,
