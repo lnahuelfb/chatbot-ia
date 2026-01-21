@@ -12,6 +12,7 @@ function isIncoming(payload) {
   const mt = payload?.message_type ?? msg?.message_type;
   if (typeof mt === "string") return mt.toLowerCase() === "incoming";
   if (typeof mt === "number") return mt === 0;
+
   return msg?.sender_type?.toLowerCase?.() === "contact";
 }
 
@@ -93,6 +94,7 @@ router.post("/", async (req, res) => {
     console.log("Respuesta enviada:", aiReply);
   } catch (err) {
     console.error("Error procesando webhook:", err);
+    return;
   }
 });
 
