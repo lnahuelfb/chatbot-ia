@@ -64,14 +64,29 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
 
 // Función auxiliar para buscar de verdad en la base de datos
 async function filtrarPropiedadesDesdeDB(filtros) {
+  console.log('Filtros recibidos:', filtros);
+  
+  if (!filtros || (typeof filtros !== 'object' && filtros !== null)) {
+    console.error('Los filtros no son un objeto válido');
+    return [];
+  }
+
+  const where = {};
+
+  if (filtros.zona) {
+    where.zona = { contains: filtros.zona, mode: 'insensitive' };
+  }
+
+  if (filtros.recamaras) {
+    where.recamaras = { gte: filtros.recamaras };
+  }
+
+  if (filtros.presupuestoMax) {
+    where.precio = { lte: filtros.presupuestoMax };
+  }
+
   return await prisma.property.findMany({
-    where: {
-      AND: [
-        filtros.zona ? { zona: { contains: filtros.zona, mode: 'insensitive' } } : {},
-        filtros.recamaras ? { recamaras: { gte: filtros.recamaras } } : {},
-        filtros.presupuestoMax ? { precio: { lte: filtros.presupuestoMax } } : {},
-      ]
-    },
+    where,
     take: 5 // Para no saturar el chat de Telegram
   });
 }
