@@ -4,15 +4,16 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
   // 1. Identificar si es una llamada a función o filtros directos
   const isUpdate = fnNameOrFilters?.name === "updatePreferences";
   const args = isUpdate ? fnNameOrFilters.args : fnNameOrFilters;
-
+  
   // 2. Persistencia Real con Prisma
   // El userId viene de la IA (inyectado en el system prompt) o del mensaje
   if (args.userId) {
     try {
       console.log(`[DB] Sincronizando preferencias para: ${args.userId}`);
       
+      console.log('Guardando preferencias')
       // Usamos upsert: si el usuario no tiene preferencias, las crea; si tiene, las pisa.
-      await prisma.preference.upsert({
+      const preferences = await prisma.preference.upsert({
         where: { userId: String(args.userId) },
         update: {
           zona: args.zona,
@@ -28,6 +29,10 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
           operacion: args.operacion,
         },
       });
+
+      if(preferences) {
+        console.log("preferencias: ", args)
+      }
       
       console.log(`[DB] Preferencias guardadas con éxito.`);
     } catch (err) {
