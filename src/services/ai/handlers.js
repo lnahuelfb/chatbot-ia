@@ -17,6 +17,8 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
         include: { user: true },
       });
 
+      console.log(conversation)
+
       if (!conversation?.user) {
         const reply = "No encontré el usuario asociado a esta conversación.";
         history.push({ role: "assistant", content: reply });
