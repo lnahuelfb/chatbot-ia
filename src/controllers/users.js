@@ -1,5 +1,8 @@
 import { prisma } from "../db/prisma.js";
 import { upsertPreferenceSchema } from "../validations/preference.js";
+import { savePreferences } from '../services/preferenceService.js';
+
+
 
 // Crea el usuario si no existe o devuelve el existente
 export const ensureUser = async (req, res) => {
@@ -55,27 +58,10 @@ export const getUserPreferences = async (req, res) => {
 };
 
 // Upsert de preferencias del usuario
-export const upsertPreference = async (req, res) => {
-  const validation = upsertPreferenceSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({ errors: validation.error.errors });
-  }
-
+export const upsertPreference = async (userId, preferences) => {
   try {
-    const userId = req.params.id;
-
-    const preference = await prisma.preference.upsert({
-      where: { userId },
-      update: validation.data,
-      create: {
-        userId,
-        ...validation.data,
-      },
-    });
-
-    res.json(preference);
-  } catch (err) {
-    console.error("Error guardando preferencias:", err);
-    res.status(500).json({ error: "Error interno del servidor" });
+    await savePreferences(userId, preferences);
+  } catch (error) {
+    throw error;
   }
 };

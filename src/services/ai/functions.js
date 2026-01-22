@@ -23,20 +23,20 @@ export const functions = [
       }
     }
   },
-    {
+  {
     name: "updatePreferences",
-    description: "Guarda o actualiza preferencias del usuario",
+    description: "Guarda o actualiza preferencias del usuario a partir de una conversación",
     type: "function",
     parameters: {
       type: "object",
       properties: {
-        userId: { type: "string" },
+        conversationId: { type: "string" },
         zona: { type: "string" },
         recamaras: { type: "number" },
         presupuestoMax: { type: "number" },
         operacion: { type: "string", enum: ["compra", "renta"] }
       },
-      required: ["userId"]
+      required: ["conversationId"]
     }
   }
 ];

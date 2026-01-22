@@ -18,14 +18,7 @@ export async function generateReply(conversationId, userMessage) {
     });
 
     // Convertir a formato que OpenAI espera
-    const history = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages.map(m => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
-      })),
-      { role: "user", content: userMessage },
-    ];
+    const history = [{ role: "system", content: SYSTEM_PROMPT }, ...messages.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content, })), { role: "user", content: userMessage },];
 
     // 3️⃣ Llamada a OpenAI con herramientas
     const response = await client.responses.create({
