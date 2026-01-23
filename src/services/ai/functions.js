@@ -25,18 +25,17 @@ export const functions = [
   },
   {
     name: "updatePreferences",
-    description: "Guarda o actualiza preferencias del usuario a partir de una conversación",
+    description: "Guarda o actualiza preferencias del usuario",
     type: "function",
     parameters: {
       type: "object",
       properties: {
-        conversationId: { type: "string" },
         zona: { type: "string" },
+        tipoPropiedad: { type: "string" },
         recamaras: { type: "number" },
         presupuestoMax: { type: "number" },
         operacion: { type: "string", enum: ["compra", "renta"] }
-      },
-      required: ["conversationId"]
+      }
     }
   }
 ];

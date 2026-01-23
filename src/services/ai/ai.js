@@ -11,25 +11,74 @@ export async function generateReply(conversationId, userMessage) {
   try {
     if (!conversationId || !userMessage) return "¿Podés repetir eso?";
 
-    // 1️⃣ Traer historial desde DB
+    // Traer historial desde DB
     const messages = await prisma.message.findMany({
       where: { conversationId: String(conversationId) },
       orderBy: { createdAt: "asc" },
     });
 
-    // Convertir a formato que OpenAI espera
-    const history = [{ role: "system", content: SYSTEM_PROMPT }, ...messages.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content, })), { role: "user", content: userMessage },];
+    // Construir history para el modelo
+    const history = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...messages.map(m => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+      })),
+      { role: "user", content: userMessage },
+    ];
 
-    // 3️⃣ Llamada a OpenAI con herramientas
+    // Llamada a OpenAI con herramientas
     const response = await client.responses.create({
       model: "gpt-4o-mini",
       input: history,
       tools: functions,
     });
 
-    const text = response.output_text?.trim();
-    if (text) {
-      // Guardar respuesta en DB
+    // Log para depuración
+    console.log("Response output:", response.output);
+    console.log("Response text:", response.output_text);
+
+    // 1️⃣ Procesar TODOS los tool calls
+    if (Array.isArray(response.output)) {
+      const toolCalls = response.output.filter(o =>
+        ["tool", "function_call", "tool_call"].includes(o.type)
+      );
+
+      if (toolCalls.length > 0) {
+        let lastReply;
+        for (const toolBlock of toolCalls) {
+          let fnName, argsRaw;
+
+          if (toolBlock.type === "function_call") {
+            fnName = toolBlock.name;
+            argsRaw = toolBlock.arguments || "{}"; // 🔑 acá parseamos directamente
+          } else if (toolBlock.tool) {
+            fnName = toolBlock.tool.name;
+            argsRaw = toolBlock.tool.input || toolBlock.tool.arguments || "{}";
+          } else {
+            fnName = toolBlock.name;
+            argsRaw = toolBlock.input || "{}";
+          }
+
+          let args;
+          try {
+            args = typeof argsRaw === "string" ? JSON.parse(argsRaw) : argsRaw;
+          } catch {
+            args = {};
+          }
+
+          console.log("fnName:", fnName, "args:", args);
+
+          lastReply = await handleFunctionCall({ name: fnName, args }, history, conversationId);
+        }
+
+        return lastReply;
+      }
+    }
+
+    // 2️⃣ Si no hubo tool call, usamos texto
+    if (response.output_text?.trim()) {
+      const text = response.output_text.trim();
       await prisma.message.create({
         data: {
           role: "assistant",
@@ -40,38 +89,17 @@ export async function generateReply(conversationId, userMessage) {
       return text;
     }
 
-    // 4️⃣ Manejo de tool/function_call si no hay texto
-    const toolBlock = Array.isArray(response.output)
-      ? response.output.find(o => ["tool", "function_call", "tool_call"].includes(o.type))
-      : null;
-
-    if (toolBlock) {
-      let fnName, argsRaw;
-      if (toolBlock.tool) {
-        fnName = toolBlock.tool.name;
-        argsRaw = toolBlock.tool.input || toolBlock.tool.arguments || "{}";
-      } else if (toolBlock.function_call) {
-        fnName = toolBlock.function_call.name;
-        argsRaw = toolBlock.function_call.arguments || "{}";
-      } else {
-        fnName = toolBlock.name;
-        argsRaw = toolBlock.input || "{}";
-      }
-
-      let args;
-      try { args = typeof argsRaw === "string" ? JSON.parse(argsRaw) : argsRaw; }
-      catch { args = {}; }
-
-      return await handleFunctionCall({ name: fnName, args }, history);
-    }
-
-    // 5️⃣ Fallback genérico
-    const fallback = "Podemos avanzar filtrando por zona o características. ¿Qué preferís definir primero?";
+    // 3️⃣ Fallback genérico
+    const fallback =
+      "Podemos avanzar filtrando por zona o características. ¿Qué preferís definir primero?";
     await prisma.message.create({
-      data: { role: "assistant", content: fallback, conversationId: String(conversationId) },
+      data: {
+        role: "assistant",
+        content: fallback,
+        conversationId: String(conversationId),
+      },
     });
     return fallback;
-
   } catch (err) {
     console.error("Error IA:", err?.message || err);
     return "Estoy teniendo un problema técnico, ya lo reviso.";

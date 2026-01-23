@@ -1,23 +1,34 @@
 import { prisma } from "../../db/prisma.js";
 
-export async function handleFunctionCall(fnNameOrFilters, history) {
+export async function handleFunctionCall(fnNameOrFilters, history, conversationId) {
   const isUpdate = fnNameOrFilters?.name === "updatePreferences";
-  const args = isUpdate ? fnNameOrFilters.args : fnNameOrFilters;
+  console.log("fnNameOrFilters: ", fnNameOrFilters)
+  let args = isUpdate ? fnNameOrFilters.args : fnNameOrFilters;
 
-  console.log('Args: ', args)
-  console.log('IsUpdate: ', isUpdate)
-  console.log('History: ', history)
+  // 🔑 Forzar parseo si viene como string o si es un objeto vacío
+  if (typeof args === "string") {
+    try {
+      args = JSON.parse(args);
+    } catch {
+      args = {};
+    }
+  } else if (args && typeof args.arguments === "string") {
+    // Caso: te llega un objeto con la propiedad arguments como string
+    try {
+      args = JSON.parse(args.arguments);
+    } catch {
+      args = {};
+    }
+  }
 
+  console.log("Args finales:", args);
 
   if (isUpdate) {
     try {
-      // Paso intermedio: buscar la conversación y obtener el userId real
       const conversation = await prisma.conversation.findUnique({
-        where: { id: String(args.conversationId) },
+        where: { id: String(conversationId) },
         include: { user: true },
       });
-
-      console.log(conversation)
 
       if (!conversation?.user) {
         const reply = "No encontré el usuario asociado a esta conversación.";
@@ -27,25 +38,30 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
 
       const userId = conversation.user.id;
 
-      // Guardar/actualizar preferencias
       const preferences = await prisma.preference.upsert({
         where: { userId },
         update: {
           zona: args.zona,
+          tipoPropiedad: args.tipoPropiedad,
           recamaras: args.recamaras,
           presupuestoMax: args.presupuestoMax,
           operacion: args.operacion,
+          profileCompleted: Boolean(
+            args.zona && args.tipoPropiedad && args.recamaras && args.presupuestoMax && args.operacion
+          ),
         },
         create: {
           userId,
           zona: args.zona,
+          tipoPropiedad: args.tipoPropiedad,
           recamaras: args.recamaras,
           presupuestoMax: args.presupuestoMax,
           operacion: args.operacion,
+          profileCompleted: false,
         },
       });
 
-      const reply = `¡Listo! Guardé tus preferencias: zona=${preferences.zona ?? "-"}, recámaras=${preferences.recamaras ?? "-"}, presupuesto=${preferences.presupuestoMax ?? "-"}, operación=${preferences.operacion ?? "-"}.`;
+      const reply = `¡Listo! Guardé tus preferencias: zona=${preferences.zona ?? "-"}, tipo=${preferences.tipoPropiedad ?? "-"}, recámaras=${preferences.recamaras ?? "-"}, presupuesto=${preferences.presupuestoMax ?? "-"}, operación=${preferences.operacion ?? "-"}.`;
       history.push({ role: "assistant", content: reply });
       return reply;
     } catch (err) {
@@ -56,7 +72,6 @@ export async function handleFunctionCall(fnNameOrFilters, history) {
     }
   }
 
-  // Si no es updatePreferences, buscás propiedades con filtros
   const resultados = await filtrarPropiedadesDesdeDB(args);
 
   const reply = resultados.length
